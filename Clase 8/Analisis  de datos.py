@@ -1,19 +1,4 @@
 import numpy as np
-
-# Datos de a y su error
-
-masitas =  np.array([0.8234 , 0.6678, 1.0301,2.0670,3.1022,5.1782,4.1323,3.7700,2.7438,1.4912])  #en g
-
-a_vals_trunc = np.array([117.31, 116.20, 117.37, 124.38, 131.51, 147.25, 138.08, 137.24, 129.11, 118.94])
-a_errors_trunc = np.array([8.10, 8.32, 12.88, 7.33, 6.98, 7.00, 7.21, 6.96, 7.52, 5.74])
-
-a_vals_circ = np.array([107.09, 106.02, 107.82, 117.55, 122.04, 138.29, 128.70, 128.53, 121.98, 109.55])
-a_errors_circ = np.array([16.29, 15.40, 15.79, 18.13, 18.33, 18.80, 18.44, 18.82, 18.74, 17.11])
-
-a_vals_elips = np.array([107.33, 105.90, 107.32, 117.55, 121.90, 138.50, 129.09, 127.84, 121.98, 104.97])
-a_errors_elips = np.array([16.09, 15.34, 14.93, 18.01, 18.19, 18.22, 17.34, 18.39, 17.86, 15.55])
-
-import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 from scipy import stats

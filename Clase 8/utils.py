@@ -3,6 +3,8 @@ import numpy as np
 from scipy.signal import find_peaks
 from scipy.optimize import differential_evolution
 
+
+
 def preparar_roi(imagen,center_x=890, center_y=1645, offset=650, canal=2): # (Region Of Interest)
     """
     Extrae la región de interés y construye
@@ -31,6 +33,31 @@ def preparar_roi(imagen,center_x=890, center_y=1645, offset=650, canal=2): # (Re
         "distancia": distancia,
         "col_central": ccol
     }
+
+
+
+def localizar_lobulo(espectro_log, kx, ky, k_min=1500, k_max=6000, ancho_kx=500):
+    """
+    Localiza la posición aproximada del lóbulo principal en el espectro.
+    Devuelve (kx0, ky0) en las mismas unidades que kx, ky.
+    """
+    # Seleccionar región de búsqueda
+    mask_ky = (np.abs(ky) > k_min) & (np.abs(ky) < k_max)
+    mask_kx = np.abs(kx) < ancho_kx
+    
+    # Región 2D de búsqueda
+    region = espectro_log[mask_ky][:, mask_kx]
+    
+    # Encontrar el máximo
+    idx_max = np.unravel_index(np.argmax(region), region.shape)
+    
+    # Mapear a índices globales
+    ky_idx = np.where(mask_ky)[0][idx_max[0]]
+    kx_idx = np.where(mask_kx)[0][idx_max[1]]
+    
+    return kx[kx_idx], ky[ky_idx]
+
+
 
 def ajustar_filtro_circular_ml(roi,bounds=(8, 120)):
     print("Iniciando optimizacion")

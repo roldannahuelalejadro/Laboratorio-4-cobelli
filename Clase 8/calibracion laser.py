@@ -14,10 +14,11 @@ from matplotlib.colors import SymLogNorm
 import os
 from scipy.signal import find_peaks
 from scipy.ndimage import rotate
+from utils import *
 # %%
 
 
-ROOT = Path(r"C:\Users\tomas\Desktop\Laboratorio-4-cobelli-main\Clase 8\young _2\rendija")
+ROOT = Path(r"C:\Users\User\Desktop\Laboratorio-4-cobelli\Clase 8\rendija")
 extensiones_validas = ('.tif', '.tiff', '.png', '.jpg', '.jpeg')
 archivos = [f for f in os.listdir(ROOT) if f.lower().endswith(extensiones_validas)]
 # archivos.sort()  # opcional, para orden alfabético
@@ -41,15 +42,15 @@ imagenes =[images[2],images[4],images[6],images[8],images[10],images[12],images[
 # %%
 #checkeo donde tomar
 imagen = images[0]
-plt.figure()
-plt.imshow(imagen)
-plt.show()
+# plt.figure()
+# plt.imshow(imagen)
+# plt.show()
 
 angulo_correccion = 1.60
 imagen_rotada = rotate(imagen, angulo_correccion, reshape=False, order=3)
-plt.figure()
-plt.imshow(imagen_rotada)
-plt.show()
+# plt.figure()
+# plt.imshow(imagen_rotada)
+# plt.show()
 
 
 
@@ -62,9 +63,9 @@ matriz = imagen_rotada[center_x - offset : center_x + offset,
                 center_y - offset : center_y + offset,
                 2].astype(float)
 
-plt.figure()
-plt.imshow(matriz)
-plt.show()
+# plt.figure()
+# plt.imshow(matriz)
+# plt.show()
 
 # %%
 
@@ -112,8 +113,8 @@ fshift_filtrado = fshift * mascara
 f_ishift = np.fft.ifftshift(fshift_filtrado)
 imagen_filtrada = np.fft.ifft2(f_ishift)
 imagen_filtrada = np.real(imagen_filtrada)       # usamos real() porque la parte imaginaria es ~0
-
-plot_fft = True 
+row = 100   #tome esta fila
+plot_fft = False 
 if plot_fft:
     #  VISUALIZACIÓN 
     plt.figure(figsize=(16, 12))
@@ -152,7 +153,7 @@ if plot_fft:
     plt.show()
 
     #  PERFIL DE COMPARACIÓN 
-    row = 100   #tome esta fila
+
     #bineado = np.mean()                  
     plt.figure(figsize=(12, 5))
     plt.plot(matriz[row, :],".-" , label='Original', linewidth=1.5, alpha = 0.1)
@@ -195,74 +196,64 @@ if len(peaks) >= 2:
     
     # Asignar órdenes m (izquierda = negativos, derecha = positivos)
     ordenes = np.arange(-idx_central, len(peaks) - idx_central)
-    # ====================== GRÁFICO DEL PASO (linealidad del patrón) ======================
-    plt.figure(figsize=(12, 6))
+    # # ====================== GRÁFICO DEL PASO (linealidad del patrón) ======================
+    # plt.figure(figsize=(12, 6))
     
-    # Posición vs Orden (debe ser una recta perfecta en difracción ideal)
-    plt.subplot(1, 2, 1)
-    plt.plot(ordenes, peaks, 'o-', color='tab:red', markersize=8, linewidth=2.5, label='Posiciones medidas')
+    # # Posición vs Orden (debe ser una recta perfecta en difracción ideal)
+    # plt.subplot(1, 2, 1)
+    # plt.plot(ordenes, peaks, 'o-', color='tab:red', markersize=8, linewidth=2.5, label='Posiciones medidas')
     
-    # Ajuste lineal (pendiente = paso promedio)
-    coef,cov = np.polyfit(ordenes, peaks, 1 ,cov=True)
-    paso_fit = coef[0]
-    error_coef = np.sqrt(np.diag(cov))
-    plt.plot(ordenes, coef[0]*ordenes + coef[1], '--', color='black', label=f'Ajuste lineal\npaso = {paso_fit:.2f} +- {error_coef[0]:.2f} px/mm ')
+    # # Ajuste lineal (pendiente = paso promedio)
+    # coef,cov = np.polyfit(ordenes, peaks, 1 ,cov=True)
+    # paso_fit = coef[0]
+    # error_coef = np.sqrt(np.diag(cov))
+    # plt.plot(ordenes, coef[0]*ordenes + coef[1], '--', color='black', label=f'Ajuste lineal\npaso = {paso_fit:.2f} +- {error_coef[0]:.2f} px/mm ')
     
-    plt.xlabel('milimetros de paso')
-    plt.ylabel('Posición en la imagen (píxeles)')
-    plt.grid(True, alpha=0.3)
-    plt.legend()
+    # plt.xlabel('milimetros de paso')
+    # plt.ylabel('Posición en la imagen (píxeles)')
     
-    plt.subplot(1, 2, 2)
-    plt.plot(matriz[row, :],".-" , label='Original', linewidth=1.5, alpha = 0.1)
-    plt.plot(perfil_fila, color='tab:blue', linewidth=2.5, label='Perfil filtrado')
-    plt.plot(peaks, perfil_fila[peaks], "x", markersize=12, color='red', label='Picos')
-    plt.show()
+    # plt.grid(True, alpha=0.3)
+    # plt.legend()
+    
+    # plt.subplot(1, 2, 2)
+    # plt.plot(matriz[row, :],".-" , label='Original', linewidth=1.5, alpha = 0.1)
+    # plt.plot(perfil_fila, color='tab:blue', linewidth=2.5, label='Perfil filtrado')
+    # plt.plot(peaks, perfil_fila[peaks], "x", markersize=12, color='red', label='Picos')
+    # plt.show()
 else:
     print("no se encontraron picos")
 
 # paso_fit = pixeles / mm
 
 
-dist_real = 1  # mm (CAMBIAR por referencia real)
-# %%
-#for i in range(len(imagenes)):
- #   plt.figure()
- #   plt.imshow(imagenes[i])   #la primera y la ultima no estan lindas
- #   plt.show()
+
 imagenes_recortadas= imagenes[1:-1]  #la primera y la ultima no estan lindas y las voy a rotar un poco
 
-angulo_correccion = 1
+angulo_correccion = 91
 imagenes_recortadas_rotadas=[]
 for i in range(len(imagenes_recortadas)):
-    imagen_recortado_rotada = rotate(imagenes_recortadas[0], angulo_correccion, reshape=False, order=3)
+    imagen_recortado_rotada = rotate(imagenes_recortadas[i], angulo_correccion, reshape=False, order=3)
     imagenes_recortadas_rotadas.append(imagen_recortado_rotada) 
     
-plt.figure()
-plt.imshow(imagenes_recortadas_rotadas[0])
-plt.show()
-# %%
+# plt.figure()
+# plt.imshow(imagenes_recortadas_rotadas[0])
+# plt.show()
+
 matrices_recortadas = []
+matrices = []
 
-
-center_x=2080 
-center_y=540
-offset=375
+center_x=1450 
+center_y=1030
+offset=100
     # Usamos len() para obtener el número de imágenes
 for i in range(len(imagenes_recortadas_rotadas)):
+    imagen_centrada = preparar_roi(imagenes_recortadas_rotadas[i],center_x=1030, center_y=1450, offset=490, canal=2)
+    matrices_recortadas.append(imagen_centrada["matriz"])         
+    # plt.figure()
+    # plt.imshow(imagen_centrada["matriz"])
+    # plt.show()
 
-    recorte = imagenes_recortadas_rotadas[i][center_x - offset : center_x + offset,
-    center_y - offset : center_y + offset,
-    2].astype(float)
-        
-    # 3. Agregamos el recorte a la lista global
-    matrices_recortadas.append(recorte)
-        
 
-              
-plt.figure()
-plt.imshow(matrices_recortadas[0])
-plt.show()
 # %%
 px_por_mm = 16.03
 err_px_por_mm = 0.01
@@ -271,29 +262,24 @@ pixel_size_um = 1000 / px_por_mm
 pixel_size_m  = pixel_size_um * 1e-6       
 D_m = 0.763
 err_D_m = 0.002    
+
+# for i in range(len(matrices_recortadas)):
     
+#     Ny, Nx = matrices_recortadas[i].shape
+#     dx = pixel_size_m
 
-
-for i in range(len(matrices_recortadas)):
+#     kx = np.fft.fftshift(np.fft.fftfreq(Nx, dx)) * 2 * np.pi  #freq nyqist?
+#     ky = np.fft.fftshift(np.fft.fftfreq(Ny, dx)) * 2 * np.pi
     
-    Ny, Nx = matrices_recortadas[i].shape
-    dx = pixel_size_m
-
-    kx = np.fft.fftshift(np.fft.fftfreq(Nx, dx)) * 2 * np.pi  #freq nyqist?
-    ky = np.fft.fftshift(np.fft.fftfreq(Ny, dx)) * 2 * np.pi
-    
-    fshift = np.fft.fftshift(np.fft.fft2(matrices_recortadas[i]))
-    espectro_log_abs = np.log(1+np.abs(fshift))
-    plt.figure()
-    plt.imshow(espectro_log_abs)
-    plt.show()
+#     fshift = np.fft.fftshift(np.fft.fft2(matrices_recortadas[i]))
+#     espectro_log_abs = np.log(1+np.abs(fshift))
+#     plt.figure()
+#     plt.imshow(espectro_log_abs)
+#     plt.show()
 
 
-# %%
 
-
-# cuidado con la pasar a kx y ky
-def calcular_ancho_desde_espectro(imagenes_recortadas_rotadas, center_x=2080, center_y=540, offset=375,
+def calcular_k_desde_espectro(imagen, center_x=890, center_y=1645, offset=650,
                                   canal=2, plot_espectro=False,
                                   k_min=1500, k_max=3000,
                                   umbral_lobulo=0.6,
@@ -316,50 +302,35 @@ def calcular_ancho_desde_espectro(imagenes_recortadas_rotadas, center_x=2080, ce
 
     idx_kx_ventana = np.where(np.abs(kx) < ancho_ventana_kx / 2)[0]
     if len(idx_kx_ventana) == 0:
-        return None, None, None, None
+        return None, None
 
-    sub_espectro = espectro_abs[:, idx_kx_ventana]
+    sub_espectro = espectro_abs[0:, idx_kx_ventana]
 
     idx_ky_pos = np.where((ky > k_min) & (ky < k_max))[0]
     if len(idx_ky_pos) == 0:
-        return None, None, None, None
+        return None, None
 
     sub_pos = sub_espectro[idx_ky_pos, :]
     amp_max = np.max(sub_pos)
 
     idx_ky_lobulo, idx_kx_lobulo = np.where(sub_pos > umbral_lobulo * amp_max)
     if len(idx_ky_lobulo) < 3:
-        return None, None, None, None
+        return None, None
 
     k_lobulo = ky[idx_ky_pos[idx_ky_lobulo]]
     amps_lobulo = sub_pos[idx_ky_lobulo, idx_kx_lobulo]
-    
-    
-# %%
+
     # ======================
     # PROMEDIO PONDERADO 
     # ======================
     w = amps_lobulo
     k_promedio = np.sum(w * k_lobulo) / np.sum(w)
-
     var_kbar = np.sum(w * (k_lobulo - k_promedio)**2) / (np.sum(w)**2)
     err_k = np.sqrt(var_kbar)
 
-    # Espaciado
-    delta_y = 2 * np.pi / k_promedio
-    err_delta_y = (2 * np.pi / k_promedio**2) * err_k
-
-    # Ancho
-    a_m = lambda_m * D_m / delta_y
-    err_a_m = a_m * (err_delta_y / delta_y)
-
-    a_um = a_m * 1e6
-    err_a_um = err_a_m * 1e6
-# %%
-    
-# Plot opcional del espectro calibrado con lóbulo marcado
+    # Plot opcional del espectro calibrado con lóbulo marcado
     if plot_espectro:
-        fig, axs = plt.subplots(1, 2, figsize=(16, 6))
+        _, axs = plt.subplots(1, 2, figsize=(16, 6))
         
         # Espectro 2D
         axs[0].imshow(np.log10(1 + espectro_abs),
@@ -389,5 +360,25 @@ def calcular_ancho_desde_espectro(imagenes_recortadas_rotadas, center_x=2080, ce
         
         plt.tight_layout()
         plt.show()
-    return k_promedio, delta_y, a_um, err_a_um
+
+    return k_promedio, err_k
+
+kes = []
+err_kes = []
+
+for i in range(len(imagenes_recortadas_rotadas)):
+
+    k_proomedio, err_k_promedio = calcular_k_desde_espectro(imagenes_recortadas_rotadas[i],center_x=1030, center_y=1450, offset=490,
+                                  canal=2, plot_espectro=True,
+                                  k_min=1500, k_max=5500,
+                                  umbral_lobulo= 0.8,
+                                  ancho_ventana_kx=5000)
+    kes.append(k_proomedio)
+    err_kes.append(err_k_promedio)
+
+
+
+print(kes)
+print(err_kes)
+
 

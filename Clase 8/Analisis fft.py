@@ -1,4 +1,4 @@
-
+import scipy.stats as stats
 import imageio.v2 as imageio
 import matplotlib.pyplot as plt 
 from pathlib import Path
@@ -10,7 +10,7 @@ from scipy.signal import find_peaks
 from scipy.optimize import curve_fit
 from utils import *
 
-ROOT = Path(r"C:\Users\User\Desktop\Laboratorio-4-cobelli\Clase 8\young _2\aluminium_")
+ROOT = Path(r"C:/Users/publico/Desktop/Labo 4 verano grupo 3 2026/Laboratorio-4-cobelli-main/Clase 8/young _2/aluminium_")
 
 
 extensiones_validas = ('.tif', '.tiff', '.png', '.jpg', '.jpeg')
@@ -34,119 +34,41 @@ if not images:
 lambda_nm = 650                            
 lambda_m  = lambda_nm * 1e-9               # 6.50e-7 m
 
+err_lambda_m = 0
+
 px_por_mm = 23.88
 err_px_por_mm = 0.01
 rel_err_cal = err_px_por_mm / px_por_mm   # ≈ 0.0004188
 pixel_size_um = 1000 / px_por_mm           # ≈ 41.8936 µm/píxel
 pixel_size_m  = pixel_size_um * 1e-6       # ≈ 4.189e-5 m/píxel
 
-D_m = 0.5125                               
+err_pixel_size_m = pixel_size_m * rel_err_cal
 
-def calcular_ancho_desde_espectro(imagen, center_x=890, center_y=1645, offset=650,
-                                  canal=2, plot_espectro=False,
-                                  k_min=1500, k_max=3000,
-                                  umbral_lobulo=0.6,
-                                  ancho_ventana_kx=4000):
-
-    matriz = imagen[center_x - offset:center_x + offset,
-                    center_y - offset:center_y + offset,
-                    canal].astype(float)
-
-    matriz_detrend = matriz - np.mean(matriz)
-
-    fshift = np.fft.fftshift(np.fft.fft2(matriz_detrend))
-    espectro_abs = np.abs(fshift)
-
-    Ny, Nx = matriz.shape
-    dx = pixel_size_m
-
-    kx = np.fft.fftshift(np.fft.fftfreq(Nx, dx)) * 2 * np.pi
-    ky = np.fft.fftshift(np.fft.fftfreq(Ny, dx)) * 2 * np.pi
-
-    idx_kx_ventana = np.where(np.abs(kx) < ancho_ventana_kx / 2)[0]
-    if len(idx_kx_ventana) == 0:
-        return None, None, None, None
-
-    sub_espectro = espectro_abs[:, idx_kx_ventana]
-
-    idx_ky_pos = np.where((ky > k_min) & (ky < k_max))[0]
-    if len(idx_ky_pos) == 0:
-        return None, None, None, None
-
-    sub_pos = sub_espectro[idx_ky_pos, :]
-    amp_max = np.max(sub_pos)
-
-    idx_ky_lobulo, idx_kx_lobulo = np.where(sub_pos > umbral_lobulo * amp_max)
-    if len(idx_ky_lobulo) < 3:
-        return None, None, None, None
-
-    k_lobulo = ky[idx_ky_pos[idx_ky_lobulo]]
-    amps_lobulo = sub_pos[idx_ky_lobulo, idx_kx_lobulo]
-
-    # ======================
-    # PROMEDIO PONDERADO 
-    # ======================
-    w = amps_lobulo
-    k_promedio = np.sum(w * k_lobulo) / np.sum(w)
-
-    var_kbar = np.sum(w * (k_lobulo - k_promedio)**2) / (np.sum(w)**2)
-    err_k = np.sqrt(var_kbar)
-
-    # Espaciado
-    delta_y = 2 * np.pi / k_promedio
-    err_delta_y = (2 * np.pi / k_promedio**2) * err_k
-
-    # Ancho
-    a_m = lambda_m * D_m / delta_y
-    err_a_m = a_m * (err_delta_y / delta_y)
-
-    a_um = a_m * 1e6
-    err_a_um = err_a_m * 1e6
-
-    
-# Plot opcional del espectro calibrado con lóbulo marcado
-    if plot_espectro:
-        fig, axs = plt.subplots(1, 2, figsize=(16, 6))
-        
-        # Espectro 2D
-        axs[0].imshow(np.log10(1 + espectro_abs),
-                      extent=[kx[0], kx[-1], ky[0], ky[-1]],
-                      origin='lower',
-                      cmap='viridis',
-                      aspect='auto')
-        axs[0].set_xlabel('kₓ  (rad/m)')
-        axs[0].set_ylabel('kᵧ  (rad/m)')
-        axs[0].set_title(f'Espectro de Fourier 2D calibrado\nk_promedio ≈ {k_promedio:.0f} ± {err_k:.0f} rad/m')
-        axs[0].plot(0, k_promedio, 'ro', ms=8, label=f'k_promedio = {k_promedio:.0f} rad/m')
-        axs[0].legend()
-        
-        # Visualización de la ventana 2D utilizada (sub_pos: parte positiva usada para lóbulo)
-        axs[1].imshow(np.log10(1 + sub_pos),
-                      extent=[kx[idx_kx_ventana[0]], kx[idx_kx_ventana[-1]], ky[idx_ky_pos[0]], ky[idx_ky_pos[-1]]],
-                      origin='lower',
-                      cmap='viridis',
-                      aspect='auto')
-        axs[1].set_xlabel('kₓ en ventana (rad/m)')
-        axs[1].set_ylabel('kᵧ positivo (rad/m)')
-        axs[1].set_title(f'Ventana 2D utilizada para cálculo\n(ancho k_x = {ancho_ventana_kx:.0f} rad/m, k_y > {k_min:.0f})')
-        axs[1].axhline(k_promedio, color='red', ls='--', label=f'k_promedio = {k_promedio:.0f} rad/m')
-        axs[1].legend()
-        axs[1].grid(True, alpha=0.3)
-        
-        
-        plt.tight_layout()
-        plt.show()
-    return k_promedio, delta_y, a_um, err_a_um
+D_m = 0.5125         
+err_D_m = 0.0001                      
 
 rendijas_fft = []
 err_rendijas_fft = []
 
 for i in range(10):
 
-    k_peak, delta_y, a_um, err_a_um = calcular_ancho_desde_espectro(
-        images[1 + 3*i],
-        plot_espectro=True
-    )
+    k_prom, delta_y, a_um, err_a_um = calcular_ancho_desde_espectro(
+        imagen = images[1+3*i],
+        lambda_m = lambda_m,                # longitud de onda en metros (obligatorio)
+        pixel_size_m =pixel_size_m ,            # tamaño de píxel en metros (obligatorio)
+        D_m=D_m,                     # distancia rendija-pantalla en metros (obligatorio)
+        center_x=890,
+        center_y=1645,
+        offset=650,
+        canal=2,
+        plot_espectro=False,
+        umbral_lobulo=0.9,
+        delta_kx=2000,            # semi-ancho de la ventana en kx (rad/m)
+        delta_ky=2500,           # semi-ancho de la ventana en ky (rad/m)
+        k_y_min_inicial=1500,    # límite inferior para buscar el pico inicial (rad/m)
+        err_lambda_m=err_lambda_m,       # error en lambda_m (opcional)
+        err_D_m=err_D_m,            # error en D_m (opcional)
+        err_pixel_size_m=err_pixel_size_m )    # error en pixel_size_m (opcional)
 
     if a_um is not None:
         rendijas_fft.append(a_um)
@@ -238,6 +160,19 @@ chi2 = np.sum((residuos / err_total_m)**2)
 gl = len(a_data_m) - 2
 chi2_red = chi2 / gl
 
+
+p_chi = stats.chi2.sf(chi2, gl)
+# interpretamos el resultado:
+print('chi^2: ' + str(chi2))
+print('p-valor del chi^2: ' + str(p_chi))
+
+
+if p_chi<0.05:
+    print('Se rechaza la hipótesis de que el modelo ajuste a los datos.')
+else:
+    print('No se puede rechazar la hipótesis de que el modelo ajuste a los datos.')
+    
+    
 print(f"\n--- Resultados del ajuste ---")
 print(f"Pendiente A = {A:.3e} ± {err_A:.3e} m/kg")
 print(f"Ordenada B = {B:.3e} ± {err_B:.3e} m")

@@ -13,12 +13,13 @@ from matplotlib.colors import LogNorm
 from matplotlib.colors import SymLogNorm
 import os
 from scipy.signal import find_peaks
-from scipy.ndimage import rotate
+from scipy.ndimage import 
+from scipy.optimize import curve_fit
 from utils import *
 # %%
 
 
-ROOT = Path(r"C:\Users\User\Desktop\Laboratorio-4-cobelli\Clase 8\rendija")
+ROOT = Path(r"C:/Users/publico/Desktop/Labo 4 verano grupo 3 2026/Laboratorio-4-cobelli-main/rendija")
 extensiones_validas = ('.tif', '.tiff', '.png', '.jpg', '.jpeg')
 archivos = [f for f in os.listdir(ROOT) if f.lower().endswith(extensiones_validas)]
 # archivos.sort()  # opcional, para orden alfabético
@@ -381,4 +382,59 @@ for i in range(len(imagenes_recortadas_rotadas)):
 print(kes)
 print(err_kes)
 
+
+#Ecuacion
+kes= np.array(kes)
+#rendija = np.array([45, 50, 55, 60, 65, 70, 75]) #supongo um #en recortadas saque la primera y segunda
+rendija = np.array([45, 50, 55, 60, 65, 70, 75]) * 1e-3  #en m, porque k lo tnego en m
+
+def f(rendija, lambdaa, b):
+   return (2*np.pi/D_m)*(1/lambdaa)*rendija + b
+
+
+
+p_inicial = [600e-9, 0]
+popt, pcov = curve_fit(f, rendija, kes, sigma=err_kes, absolute_sigma=True, p_o = p_inicial) 
+perr = np.sqrt(np.diag(pcov)) # los errores de los parámetros del ajuste son la raíz cuadrada de la diagonal de la matriz de covarianza
+
+print('Resultados del ajuste:')
+for i in range(len(popt)):
+  print('Parámetro ' + str(i) + ': ' + str(popt[i]) + " \u00B1 " + str(perr[i]))
+
+
+x_ajuste = np.linspace(np.min(rendija),np.max(rendija),len(rendija)*10) # defino un eje horizontal más fino que los puntos que medí, para que el ajuste se vea suave
+
+plt.figure()
+plt.title('Datos ajustados')
+plt.xlabel('rendijas')
+plt.ylabel('kes')
+plt.errorbar(rendija, kes, err_kes, 0, '.')
+plt.plot(x_ajuste,f(x_ajuste,popt[0],popt[1]))
+plt.grid(True)
+plt.show()
+     
+
+# Recursos necesarios para calcular el chi^2 y su p-valor:
+puntos = len(rendija)
+params = len(popt)
+grados_libertad = puntos - params
+y_modelo = f(rendija,popt[0],popt[1])
+
+# calculo el chi^2 y su p-valor:
+chi_cuadrado = np.sum(((kes-y_modelo)/err_kes)**2)
+p_chi = stats.chi2.sf(chi_cuadrado, grados_libertad)
+# interpretamos el resultado:
+print('chi^2: ' + str(chi_cuadrado))
+print('p-valor del chi^2: ' + str(p_chi))
+
+if err_kes[0]==0:
+    print('No se declararon errores en la variable y.')
+elif p_chi<0.05:
+    print('Se rechaza la hipótesis de que el modelo ajuste a los datos.')
+else:
+    print('No se puede rechazar la hipótesis de que el modelo ajuste a los datos.')
+     
+    
+    
+    
 

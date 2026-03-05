@@ -16,10 +16,11 @@ from scipy.signal import find_peaks
 from scipy.ndimage import rotate
 import scipy.stats as stats
 from scipy.optimize import curve_fit
+from utils import *
 # %%
 
 
-ROOT = Path(r"C:\Users\tomas\Desktop\Laboratorio-4-cobelli-main\Clase 8\young _2\rendija")
+ROOT = Path(r"C:\Users\publico\Desktop\Labo 4 verano grupo 3 2026\Laboratorio-4-cobelli-main\rendija")
 extensiones_validas = ('.tif', '.tiff', '.png', '.jpg', '.jpeg')
 archivos = [f for f in os.listdir(ROOT) if f.lower().endswith(extensiones_validas)]
 # archivos.sort()  # opcional, para orden alfabético
@@ -248,11 +249,11 @@ center_y=1030
 offset=100
     # Usamos len() para obtener el número de imágenes
 for i in range(len(imagenes_recortadas_rotadas)):
-    imagen_centrada = preparar_roi(imagenes_recortadas_rotadas[i],center_x=1030, center_y=1450, offset=490, canal=2)
+    imagen_centrada = preparar_roi(imagenes_recortadas_rotadas[i],center_x=1030, center_y=1450, offset=300, canal=2)
     matrices_recortadas.append(imagen_centrada["matriz"])         
-    # plt.figure()
-    # plt.imshow(imagen_centrada["matriz"])
-    # plt.show()
+    #plt.figure()
+    #plt.imshow(imagen_centrada["matriz"])
+    #plt.show()
 
 
 # %%
@@ -266,172 +267,67 @@ err_D_m = 0.002
 D_um=763000
 err_D_um = 2000
 
-# for i in range(len(matrices_recortadas)):
-    
-#     Ny, Nx = matrices_recortadas[i].shape
-#     dx = pixel_size_m
 
-#     kx = np.fft.fftshift(np.fft.fftfreq(Nx, dx)) * 2 * np.pi  #freq nyqist?
-#     ky = np.fft.fftshift(np.fft.fftfreq(Ny, dx)) * 2 * np.pi
-    
-#     fshift = np.fft.fftshift(np.fft.fft2(matrices_recortadas[i]))
-#     espectro_log_abs = np.log(1+np.abs(fshift))
-#     plt.figure()
-#     plt.imshow(espectro_log_abs)
-#     plt.show()
-
-
-
-def calcular_k_desde_espectro(imagen, center_x=890, center_y=1645, offset=650,
-                                  canal=2, plot_espectro=False,
-                                  k_min=1500, k_max=3000,
-                                  umbral_lobulo=0.6,
-                                  ancho_ventana_kx=4000):
-
-    matriz = imagen[center_x - offset:center_x + offset,
-                    center_y - offset:center_y + offset,
-                    canal].astype(float)
-
-    matriz_detrend = matriz - np.mean(matriz)
-
-    fshift = np.fft.fftshift(np.fft.fft2(matriz_detrend))
-    espectro_abs = np.abs(fshift)
-
-    Ny, Nx = matriz.shape
-    dx = pixel_size_m
-
-    kx = np.fft.fftshift(np.fft.fftfreq(Nx, dx)) * 2 * np.pi
-    ky = np.fft.fftshift(np.fft.fftfreq(Ny, dx)) * 2 * np.pi
-
-    idx_kx_ventana = np.where(np.abs(kx) < ancho_ventana_kx / 2)[0]
-    if len(idx_kx_ventana) == 0:
-        return None, None
-
-    sub_espectro = espectro_abs[0:, idx_kx_ventana]
-
-    idx_ky_pos = np.where((ky > k_min) & (ky < k_max))[0]
-    if len(idx_ky_pos) == 0:
-        return None, None
-
-    sub_pos = sub_espectro[idx_ky_pos, :]
-    amp_max = np.max(sub_pos)
-
-    idx_ky_lobulo, idx_kx_lobulo = np.where(sub_pos > umbral_lobulo * amp_max)
-    if len(idx_ky_lobulo) < 3:
-        return None, None
-
-    k_lobulo = ky[idx_ky_pos[idx_ky_lobulo]]
-    amps_lobulo = sub_pos[idx_ky_lobulo, idx_kx_lobulo]
-
-    # ======================
-    # PROMEDIO PONDERADO 
-    # ======================
-    w = amps_lobulo
-    k_promedio = np.sum(w * k_lobulo) / np.sum(w)
-    var_kbar = np.sum(w * (k_lobulo - k_promedio)**2) / (np.sum(w)**2)
-    err_k = np.sqrt(var_kbar)
-
-    # Plot opcional del espectro calibrado con lóbulo marcado
-    if plot_espectro:
-        _, axs = plt.subplots(1, 2, figsize=(16, 6))
-        
-        # Espectro 2D
-        axs[0].imshow(np.log10(1 + espectro_abs),
-                      extent=[kx[0], kx[-1], ky[0], ky[-1]],
-                      origin='lower',
-                      cmap='viridis',
-                      aspect='auto')
-        axs[0].set_xlabel('kₓ  (rad/m)')
-        axs[0].set_ylabel('kᵧ  (rad/m)')
-        axs[0].set_title(f'Espectro de Fourier 2D calibrado\nk_promedio ≈ {k_promedio:.0f} ± {err_k:.0f} rad/m')
-        axs[0].plot(0, k_promedio, 'ro', ms=8, label=f'k_promedio = {k_promedio:.0f} rad/m')
-        axs[0].legend()
-        
-        # Visualización de la ventana 2D utilizada (sub_pos: parte positiva usada para lóbulo)
-        axs[1].imshow(np.log10(1 + sub_pos),
-                      extent=[kx[idx_kx_ventana[0]], kx[idx_kx_ventana[-1]], ky[idx_ky_pos[0]], ky[idx_ky_pos[-1]]],
-                      origin='lower',
-                      cmap='viridis',
-                      aspect='auto')
-        axs[1].set_xlabel('kₓ en ventana (rad/m)')
-        axs[1].set_ylabel('kᵧ positivo (rad/m)')
-        axs[1].set_title(f'Ventana 2D utilizada para cálculo\n(ancho k_x = {ancho_ventana_kx:.0f} rad/m, k_y > {k_min:.0f})')
-        axs[1].axhline(k_promedio, color='red', ls='--', label=f'k_promedio = {k_promedio:.0f} rad/m')
-        axs[1].legend()
-        axs[1].grid(True, alpha=0.3)
-        
-        
-        plt.tight_layout()
-        plt.show()
-
-    return k_promedio, err_k
 
 kes = []
 err_kes = []
 
 for i in range(len(imagenes_recortadas_rotadas)):
-
-    k_proomedio, err_k_promedio = calcular_k_desde_espectro(imagenes_recortadas_rotadas[i],center_x=1030, center_y=1450, offset=490,
-                                  canal=2, plot_espectro=True,
-                                  k_min=1500, k_max=5500,
-                                  umbral_lobulo= 0.8,
-                                  ancho_ventana_kx=5000)
-    kes.append(k_proomedio)
-    err_kes.append(err_k_promedio)
-
+    k_promedio, err_k, _, _ = calcular_k_desde_espectro_adaptativo(
+        imagen=imagenes_recortadas_rotadas[i],
+        center_x=890, center_y=1645, offset=650,
+        canal=2,
+        plot_espectro=False,   # puedes poner True para depurar
+        umbral_lobulo=0.8,
+        delta_kx=5000,           # ajusta según la extensión del lóbulo
+        delta_ky=2000,          # ajusta según la extensión del lóbulo
+        k_y_min_inicial=1500,
+        pixel_size_m=pixel_size_m
+    )
+    if k_promedio is not None:
+        kes.append(k_promedio)
+        err_kes.append(err_k)
+    else:
+        kes.append(np.nan)
+        err_kes.append(np.nan)
 
 
 print(kes)
 print(err_kes)
 # %%
-#Ecuacion
-kes= np.array(kes)
-#rendija = np.array([45, 50, 55, 60, 65, 70, 75]) #supongo um #en recortadas saque la primera y segunda
-rendija = np.array([45, 50, 55, 60, 65, 70, 75]) * 1e-3  #en m, porque k lo tnego en m
+# Datos (ejemplo)
+rendija = np.array([45, 50, 55, 60, 65, 70, 75]) * 1e-6  # metros
 
-def f(rendija, lambdaa, b):
-   return (2*np.pi/D_m)*(1/lambdaa)*rendija + b
+lamba1 =  2*np.pi * rendija[0] / ( kes[0]*D_m)
+print("asdasd " , lamba1)
 
 
-
-p_inicial = [600e-9, 0]
-popt, pcov = curve_fit(f, rendija, kes, sigma=err_kes, absolute_sigma=True) 
-perr = np.sqrt(np.diag(pcov)) # los errores de los parámetros del ajuste son la raíz cuadrada de la diagonal de la matriz de covarianza
-
-print('Resultados del ajuste:')
-for i in range(len(popt)):
-  print('Parámetro ' + str(i) + ': ' + str(popt[i]) + " \u00B1 " + str(perr[i]))
-
-
-x_ajuste = np.linspace(np.min(rendija),np.max(rendija),len(rendija)*10) # defino un eje horizontal más fino que los puntos que medí, para que el ajuste se vea suave
-
-plt.figure()
-plt.title('Datos ajustados')
-plt.xlabel('rendijas')
-plt.ylabel('kes')
-plt.errorbar(rendija, kes, err_kes, 0, '.')
-plt.plot(x_ajuste,f(x_ajuste,popt[0],popt[1]))
-plt.grid(True)
+plt.errorbar(rendija, kes, yerr=err_kes, fmt=".")
 plt.show()
-     
 
-# Recursos necesarios para calcular el chi^2 y su p-valor:
-puntos = len(rendija)
-params = len(popt)
-grados_libertad = puntos - params
-y_modelo = f(rendija,popt[0],popt[1])
+coef, cov_lin = np.polyfit(
+    rendija,
+    kes,
+    1,
+    #w=1/np.array(err_kes),
+    cov=False
+)
 
-# calculo el chi^2 y su p-valor:
-chi_cuadrado = np.sum(((kes-y_modelo)/err_kes)**2)
-p_chi = stats.chi2.sf(chi_cuadrado, grados_libertad)
-# interpretamos el resultado:
-print('chi^2: ' + str(chi_cuadrado))
-print('p-valor del chi^2: ' + str(p_chi))
+print(coef)
 
-if err_kes[0]==0:
-    print('No se declararon errores en la variable y.')
-elif p_chi<0.05:
-    print('Se rechaza la hipótesis de que el modelo ajuste a los datos.')
-else:
-    print('No se puede rechazar la hipótesis de que el modelo ajuste a los datos.')
-     
+pendiente = coef
+intercepto = coef[1]
+
+err_pend = np.sqrt(cov_lin[0,0])
+err_int = np.sqrt(cov_lin[1,1])
+
+
+lamba = 2*np.pi / (pendiente * D_m)
+
+print(lamba)
+#modelo_lin = pendiente*rendija + intercepto
+#residuos_lin = rendijas - modelo_lin
+
+#chi2_lin = np.sum(((rendijas - modelo_lin)/err_rendijas)**2)
+#gl_lin = len(rendijas) - 2
+#chi2_red_lin = chi2_lin / gl_lin

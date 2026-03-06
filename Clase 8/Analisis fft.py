@@ -10,7 +10,7 @@ from scipy.signal import find_peaks
 from scipy.optimize import curve_fit
 from utils import *
 
-ROOT = Path(r"C:/Users/publico/Desktop/Labo 4 verano grupo 3 2026/Laboratorio-4-cobelli-main/Clase 8/young _2/aluminium_")
+ROOT = Path(r"C:\Users\User\Desktop\Laboratorio-4-cobelli\Clase 8\young _2\aluminium_")
 
 
 extensiones_validas = ('.tif', '.tiff', '.png', '.jpg', '.jpeg')
@@ -29,46 +29,50 @@ for archivo in archivos:
 if not images:
     print("No se encontraron imágenes.")
     exit()
-
 # ====================== CONSTANTES (de tu calibración) ======================
-lambda_nm = 650                            
-lambda_m  = lambda_nm * 1e-9               # 6.50e-7 m
-
-err_lambda_m = 0
+lambda_nm = 650
+err_lambda_nm = 1  # ¡DEBES DEFINIR UN ERROR REAL! (ej. 1 nm)
+lambda_m = lambda_nm * 1e-9
+err_lambda_m = err_lambda_nm * 1e-9
 
 px_por_mm = 23.88
 err_px_por_mm = 0.01
 rel_err_cal = err_px_por_mm / px_por_mm   # ≈ 0.0004188
 pixel_size_um = 1000 / px_por_mm           # ≈ 41.8936 µm/píxel
-pixel_size_m  = pixel_size_um * 1e-6       # ≈ 4.189e-5 m/píxel
-
+pixel_size_m = pixel_size_um * 1e-6        # ≈ 4.189e-5 m/píxel
 err_pixel_size_m = pixel_size_m * rel_err_cal
 
-D_m = 0.5125         
-err_D_m = 0.0001                      
+D_m = 0.5125
+err_D_m = 0.0001
 
 rendijas_fft = []
 err_rendijas_fft = []
 
+# IMPORTANTE: Definir 'imagen' dentro del bucle o pasar las imágenes correctamente
+# Asumo que tienes una lista 'images' con las 10 imágenes
 for i in range(10):
-
-    k_prom, delta_y, a_um, err_a_um = calcular_ancho_desde_espectro(
-        imagen = images[1+3*i],
-        lambda_m = lambda_m,                # longitud de onda en metros (obligatorio)
-        pixel_size_m =pixel_size_m ,            # tamaño de píxel en metros (obligatorio)
-        D_m=D_m,                     # distancia rendija-pantalla en metros (obligatorio)
-        center_x=890,
-        center_y=1645,
+    # Obtener la imagen correspondiente (ajusta el índice según tu lista)
+    imagen_actual = images[1+3*i]  # o images[1+3*i] como usabas antes
+    
+    k_prom, delta_y, a_um, err_a_um = calcular_ancho_desde_espectro_adaptativo(
+        imagen=imagen_actual,
+        center_x=890, 
+        center_y=1645, 
         offset=650,
-        canal=2,
-        plot_espectro=False,
-        umbral_lobulo=0.9,
-        delta_kx=2000,            # semi-ancho de la ventana en kx (rad/m)
-        delta_ky=2500,           # semi-ancho de la ventana en ky (rad/m)
-        k_y_min_inicial=1500,    # límite inferior para buscar el pico inicial (rad/m)
-        err_lambda_m=err_lambda_m,       # error en lambda_m (opcional)
-        err_D_m=err_D_m,            # error en D_m (opcional)
-        err_pixel_size_m=err_pixel_size_m )    # error en pixel_size_m (opcional)
+        canal=2, 
+        plot_espectro=False,  # Pon True solo para depurar, si no, satura la salida
+        umbral_lobulo=0.6,
+        factor_ancho=4.0,
+        search_kx_max=5000,
+        search_ky_min=1000, 
+        search_ky_max=8000,
+        pixel_size_m=pixel_size_m,
+        lambda_m=lambda_m,
+        D_m=D_m,
+        err_pixel_size_m=err_pixel_size_m,
+        err_lambda_m=err_lambda_m,
+        err_D_m=err_D_m      # ¡FALTABA PASAR err_D_m!
+    )
 
     if a_um is not None:
         rendijas_fft.append(a_um)
@@ -76,9 +80,16 @@ for i in range(10):
     else:
         rendijas_fft.append(np.nan)
         err_rendijas_fft.append(np.nan)
+        print(f"⚠️ Imagen {i} no pudo ser procesada")
 
 rendijas_fft = np.array(rendijas_fft)
 err_rendijas_fft = np.array(err_rendijas_fft)
+
+# Verificación rápida
+print("\n📊 Resultados:")
+for i, (a, err) in enumerate(zip(rendijas_fft, err_rendijas_fft)):
+    if not np.isnan(a):
+        print(f"Imagen {i}: a = {a:.2f} ± {err:.2f} µm")
 
 
 # ==================== CONSTANTES Y CALIBRACIÓN ====================

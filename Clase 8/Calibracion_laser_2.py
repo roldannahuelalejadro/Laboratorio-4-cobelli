@@ -19,8 +19,7 @@ from scipy.optimize import curve_fit
 from utils import *
 # %%
 
-
-ROOT = Path(r"C:\Users\publico\Desktop\Labo 4 verano grupo 3 2026\Laboratorio-4-cobelli-main\rendija")
+ROOT = Path(r"C:\Users\User\Desktop\Laboratorio-4-cobelli\Clase 8\young _2\rendija")
 extensiones_validas = ('.tif', '.tiff', '.png', '.jpg', '.jpeg')
 archivos = [f for f in os.listdir(ROOT) if f.lower().endswith(extensiones_validas)]
 # archivos.sort()  # opcional, para orden alfabético
@@ -39,12 +38,11 @@ if not images:
     exit()
     
 imagenes =[images[2],images[4],images[6],images[8],images[10],images[12],images[14],images[16],images[18]]
-
-
-# %%
-#checkeo donde tomar
 imagen = images[0]
 # plt.figure()
+
+
+
 # plt.imshow(imagen)
 # plt.show()
 
@@ -69,7 +67,6 @@ matriz = imagen_rotada[center_x - offset : center_x + offset,
 # plt.imshow(matriz)
 # plt.show()
 
-# %%
 
 #=========================================================================
 
@@ -116,7 +113,7 @@ f_ishift = np.fft.ifftshift(fshift_filtrado)
 imagen_filtrada = np.fft.ifft2(f_ishift)
 imagen_filtrada = np.real(imagen_filtrada)       # usamos real() porque la parte imaginaria es ~0
 row = 100   #tome esta fila
-plot_fft = False 
+plot_fft = True 
 if plot_fft:
     #  VISUALIZACIÓN 
     plt.figure(figsize=(16, 12))
@@ -199,28 +196,28 @@ if len(peaks) >= 2:
     # Asignar órdenes m (izquierda = negativos, derecha = positivos)
     ordenes = np.arange(-idx_central, len(peaks) - idx_central)
     # # ====================== GRÁFICO DEL PASO (linealidad del patrón) ======================
-    # plt.figure(figsize=(12, 6))
+    plt.figure(figsize=(12, 6))
     
-    # # Posición vs Orden (debe ser una recta perfecta en difracción ideal)
-    # plt.subplot(1, 2, 1)
-    # plt.plot(ordenes, peaks, 'o-', color='tab:red', markersize=8, linewidth=2.5, label='Posiciones medidas')
+    # Posición vs Orden (debe ser una recta perfecta en difracción ideal)
+    plt.subplot(1, 2, 1)
+    plt.plot(ordenes, peaks, 'o-', color='tab:red', markersize=8, linewidth=2.5, label='Posiciones medidas')
     
-    # # Ajuste lineal (pendiente = paso promedio)
-    # coef,cov = np.polyfit(ordenes, peaks, 1 ,cov=True)
-    # paso_fit = coef[0]
-    # error_coef = np.sqrt(np.diag(cov))
-    # plt.plot(ordenes, coef[0]*ordenes + coef[1], '--', color='black', label=f'Ajuste lineal\npaso = {paso_fit:.2f} +- {error_coef[0]:.2f} px/mm ')
+    # Ajuste lineal (pendiente = paso promedio)
+    coef,cov = np.polyfit(ordenes, peaks, 1 ,cov=True)
+    paso_fit = coef[0]
+    error_coef = np.sqrt(np.diag(cov))
+    plt.plot(ordenes, coef[0]*ordenes + coef[1], '--', color='black', label=f'Ajuste lineal\npaso = {paso_fit:.2f} +- {error_coef[0]:.2f} px/mm ')
     
-    # plt.xlabel('milimetros de paso')
-    # plt.ylabel('Posición en la imagen (píxeles)')
-    # plt.grid(True, alpha=0.3)
-    # plt.legend()
+    plt.xlabel('milimetros de paso')
+    plt.ylabel('Posición en la imagen (píxeles)')
+    plt.grid(True, alpha=0.3)
+    plt.legend()
     
-    # plt.subplot(1, 2, 2)
-    # plt.plot(matriz[row, :],".-" , label='Original', linewidth=1.5, alpha = 0.1)
-    # plt.plot(perfil_fila, color='tab:blue', linewidth=2.5, label='Perfil filtrado')
-    # plt.plot(peaks, perfil_fila[peaks], "x", markersize=12, color='red', label='Picos')
-    # plt.show()
+    plt.subplot(1, 2, 2)
+    plt.plot(matriz[row, :],".-" , label='Original', linewidth=1.5, alpha = 0.1)
+    plt.plot(perfil_fila, color='tab:blue', linewidth=2.5, label='Perfil filtrado')
+    plt.plot(peaks, perfil_fila[peaks], "x", markersize=12, color='red', label='Picos')
+    plt.show()
 else:
     print("no se encontraron picos")
 
@@ -326,7 +323,7 @@ lamba = 2*np.pi / (pendiente * D_m)
 
 print(lamba)
 #modelo_lin = pendiente*rendija + intercepto
-#residuos_lin = rendijas - modelo_lin
+#residuos_lin = rendijas - modelo_lin   
 
 #chi2_lin = np.sum(((rendijas - modelo_lin)/err_rendijas)**2)
 #gl_lin = len(rendijas) - 2

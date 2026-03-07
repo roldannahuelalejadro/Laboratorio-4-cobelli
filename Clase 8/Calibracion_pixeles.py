@@ -32,8 +32,7 @@ center_y = 1660
 offset  = 600
 
 matriz = imagen[center_x - offset : center_x + offset,
-                center_y - offset : center_y + offset,
-                2].astype(float)
+                center_y - offset : center_y + offset,1].astype(float)
 #=========================================================================
 
 # # Promedio por filas (promedia cada fila → queda un perfil en eje vertical)

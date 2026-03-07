@@ -31,7 +31,7 @@ if not images:
     exit()
 # ====================== CONSTANTES (de tu calibración) ======================
 lambda_nm = 650
-err_lambda_nm = 1  # ¡DEBES DEFINIR UN ERROR REAL! (ej. 1 nm)
+err_lambda_nm = 1  # 
 lambda_m = lambda_nm * 1e-9
 err_lambda_m = err_lambda_nm * 1e-9
 
@@ -48,6 +48,58 @@ err_D_m = 0.0001
 rendijas_fft = []
 err_rendijas_fft = []
 
+
+center_x=890
+center_y=1645
+offset=650
+
+# Obtener las matrices ROI para cada canal
+matriz_R = preparar_roi(images[1], center_x=890, center_y=1645, offset=650, canal=0)
+matriz_G = preparar_roi(images[1], center_x=890, center_y=1645, offset=650, canal=1)
+matriz_B = preparar_roi(images[1], center_x=890, center_y=1645, offset=650, canal=2)
+
+# Crear la figura
+fig = plt.figure(figsize=(12, 10))
+
+# Crear gridspec para tener control preciso
+gs = fig.add_gridspec(2, 1, height_ratios=[1, 0.4])
+
+# Subplot superior: Imagen recortada
+ax0 = fig.add_subplot(gs[0])
+matriz_completa = images[1][890-650:890+650, 1645-650:1645+650, :].astype(float)
+
+# Mostrar la imagen manteniendo su aspecto cuadrado pero ocupando el ancho
+im = ax0.imshow(matriz_completa / 255, aspect='equal')  # 'equal' mantiene la relación de aspecto
+
+# Ajustar los límites del eje para que la imagen ocupe todo el ancho disponible
+ax0.set_xlim(0, matriz_completa.shape[1] - 1)
+ax0.set_ylim(matriz_completa.shape[0] - 1, 0)  # Invertir Y para mantener orientación correcta
+ax0.axis('off')
+
+# Subplot inferior: Perfiles
+ax1 = fig.add_subplot(gs[1])
+
+# Obtener el tamaño de la imagen para ajustar el eje X del gráfico
+
+
+# Colores más claros
+ax1.plot(matriz_R["matriz"][:, matriz_R["col_central"]], 
+         color=[1, 0.4, 0.4], linewidth=1.5, label="Canal Rojo")
+ax1.plot(matriz_G["matriz"][:, matriz_G["col_central"]], 
+         color=[0.4, 1, 0.4], linewidth=1.5, label="Canal Verde")
+ax1.plot(matriz_B["matriz"][:, matriz_B["col_central"]], 
+         color=[0.4, 0.4, 1], linewidth=1.5, label="Canal Azul")
+
+ax1.set_xlabel("Píxeles", fontsize=10)
+ax1.set_ylabel("Intensidad", fontsize=10)
+ax1.legend(loc='upper right', framealpha=0.9)
+ax1.grid(True, alpha=0.3)
+
+
+plt.show()
+
+
+
 # IMPORTANTE: Definir 'imagen' dentro del bucle o pasar las imágenes correctamente
 # Asumo que tienes una lista 'images' con las 10 imágenes
 for i in range(10):
@@ -60,7 +112,7 @@ for i in range(10):
         center_y=1645, 
         offset=650,
         canal=2, 
-        plot_espectro=False,  # Pon True solo para depurar, si no, satura la salida
+        plot_espectro=True,  # Pon True solo para depurar, si no, satura la salida
         umbral_lobulo=0.6,
         factor_ancho=4.0,
         search_kx_max=5000,

@@ -1118,32 +1118,61 @@ def calcular_ancho_desde_espectro_adaptativo(imagen,
     if plot_espectro:
         fig, axs = plt.subplots(1, 2, figsize=(18, 6))
         
-        # Espectro completo
-        axs[0].imshow(espectro_log, extent=[kx[0], kx[-1], ky[0], ky[-1]],
-                      origin='lower', cmap='viridis', aspect='auto')
-        axs[0].set_xlabel('kₓ (rad/m)')
-        axs[0].set_ylabel('kᵧ (rad/m)')
-        axs[0].set_title('Espectro completo')
-        axs[0].plot(kx0, ky0, 'ro', ms=8, label='Pico encontrado')
-        axs[0].legend()
+        # Calcular límites para el zoom (40% alrededor del centro)
+        kx_center = 0
+        ky_center = 0
+        kx_range = np.max(np.abs(kx)) * 0.4  # Zoom al 40% del rango total
+        ky_range = np.max(np.abs(ky)) * 0.4
+        
+        # Espectro completo con zoom
+        im1 = axs[0].imshow(espectro_log, extent=[kx[0], kx[-1], ky[0], ky[-1]],
+                           origin='lower', cmap='viridis', aspect='auto')
+        axs[0].set_xlim(kx_center - kx_range, kx_center + kx_range)
+        axs[0].set_ylim(ky_center - ky_range, ky_center + ky_range)
+        axs[0].set_xlabel('kₓ (rad/m)', fontsize=14)  # Letras más grandes
+        axs[0].set_ylabel('kᵧ (rad/m)', fontsize=14)  # Letras más grandes
+        axs[0].tick_params(axis='both', labelsize=12)  # Ticks más grandes
+        # Sin título
+        
+        # Marcar el pico encontrado con mejor etiqueta
+        axs[0].plot(kx0, ky0, 'x', color="red", markersize=10, markeredgewidth=2, 
+                    label=f'Máximo de intensidad: ky={ky0:.1f}')
+        axs[0].legend(loc='upper right', fontsize=12, framealpha=0.9)  # Leyenda más grande
         
         # Región de la ventana adaptativa
-        extent_ventana = [kx0 - ancho_ventana_kx, kx0 + ancho_ventana_kx, 
-                         ky0 - ancho_ventana_ky, ky0 + ancho_ventana_ky]
-        axs[1].imshow(espectro_log, extent=[kx[0], kx[-1], ky[0], ky[-1]],
-                      origin='lower', cmap='viridis', aspect='auto')
-        axs[1].set_xlim(extent_ventana[0], extent_ventana[1])
-        axs[1].set_ylim(extent_ventana[2], extent_ventana[3])
-        axs[1].set_xlabel('kₓ (rad/m)')
-        axs[1].set_ylabel('kᵧ (rad/m)')
-        axs[1].set_title(f'Ventana adaptativa (factor={factor_ancho})')
-        axs[1].axhline(ky0, color='r', ls='--', alpha=0.5)
-        axs[1].axvline(kx0, color='r', ls='--', alpha=0.5)
+        im2 = axs[1].imshow(espectro_log, extent=[kx[0], kx[-1], ky[0], ky[-1]],
+                           origin='lower', cmap='viridis', aspect='auto')
         
+        # Calcular límites para la ventana con un margen adicional
+        margen_kx = ancho_ventana_kx * 0.3
+        margen_ky = ancho_ventana_ky * 0.3
         
+        axs[1].set_xlim(kx0 - ancho_ventana_kx - margen_kx, kx0 + ancho_ventana_kx + margen_kx)
+        axs[1].set_ylim(ky0 - ancho_ventana_ky - margen_ky, ky0 + ancho_ventana_ky + margen_ky)
+        axs[1].set_xlabel('kₓ (rad/m)', fontsize=14)  # Letras más grandes
+        axs[1].set_ylabel('kᵧ (rad/m)', fontsize=14)  # Letras más grandes
+        axs[1].tick_params(axis='both', labelsize=12)  # Ticks más grandes
+        # Sin título
+        
+        # Dibujar la ventana adaptativa
+        rect_ventana = plt.Rectangle((kx0 - ancho_ventana_kx, ky0 - ancho_ventana_ky),
+                                    2*ancho_ventana_kx, 2*ancho_ventana_ky,
+                                    linewidth=2, edgecolor='yellow', facecolor='none',
+                                    linestyle='--', label=f'Ventana (factor={factor_ancho})')
+        axs[1].add_patch(rect_ventana)
+        
+        # Marcar el centro
+        axs[1].plot(kx0, ky0, 'x', color="red", markersize=10, markeredgewidth=2,
+                    label=f'Máximo: ky={ky0:.1f}')
+        axs[1].axhline(ky0, color='red', ls=':', alpha=0.5, linewidth=1)
+        axs[1].axvline(kx0, color='red', ls=':', alpha=0.5, linewidth=1)
+        
+        axs[1].legend(loc='upper right', fontsize=12, framealpha=0.9)  # Leyenda más grande
+        
+        # Ajustar layout y mostrar
         plt.tight_layout()
         plt.show()
-
+    
     return k_promedio, delta_y, a_um, err_a_um
 
 def calcular_k_desde_espectro_adaptativo(imagen, 
@@ -1330,235 +1359,273 @@ def calcular_error_paso_total(paso_promedio_px, paso_std_px, px_por_mm, err_px_p
     
     return error_total_px, error_relativo
 
-def ajustar_filtro_hamming_radio_barrido_centrado_en_lobulo(roi, kx_rad, ky_rad,
-                                                            px_por_mm=None,
-                                                            err_px_por_mm=None,
-                                                            k_min=1500, k_max=6000, ancho_kx=500,
-                                                            radio_min_pix=2, radio_max_pix=30, n_radios=20):
+def ajustar_filtro_hamming_radio_barrido_centrado_en_lobulo(
+        roi, kx_rad, ky_rad,
+        px_por_mm=None,
+        err_px_por_mm=None,
+        k_min=1500, k_max=6000, ancho_kx=500,
+        radio_min_pix=2, radio_max_pix=30, n_radios=20):
+
     """
-    Barrido de radios para filtro Hamming circular CENTRADO en la posición del lóbulo.
-    TRABAJA EN PÍXELES DE FRECUENCIA. Incluye propagación de errores de calibración.
-    
-    Parámetros adicionales:
-    - px_por_mm: píxeles por milímetro (para calibración)
-    - err_px_por_mm: error en px_por_mm
-    
-    Retorna:
-    - pasos, paso_promedio, std_pasos, error_total_px, error_rel, r_opt_pix, imagen_filtrada, mascara_pix, peaks
+    Barrido de radios para filtro Hamming circular centrado en el lóbulo.
+    Incluye propagación de errores de calibración.
     """
-    print("Iniciando barrido de radio con filtro Hamming centrado en lóbulo (en píxeles)")
-    
-    # Verificar que se proporcionaron datos de calibración
+
+    print("Iniciando barrido de radio con filtro Hamming centrado en lóbulo")
+
+    # ---------- calibración ----------
     if px_por_mm is None or err_px_por_mm is None:
-        print("⚠️ Advertencia: No se proporcionaron errores de calibración. Se devolverá solo error estadístico.")
+        print("⚠️ No se proporcionaron errores de calibración")
         rel_err_cal = 0
     else:
         rel_err_cal = err_px_por_mm / px_por_mm
-    
-    # 1. Localizar el lóbulo
-    idx_ky0, idx_kx0 = localizar_lobulo_en_pixeles(roi, kx_rad, ky_rad, 
-                                                    k_min, k_max, ancho_kx)
-    
-    # 2. Extraer datos del ROI
+
+    # ---------- localizar lóbulo ----------
+    idx_ky0, idx_kx0 = localizar_lobulo_en_pixeles(
+        roi, kx_rad, ky_rad, k_min, k_max, ancho_kx
+    )
+
     matriz = roi["matriz"]
     col_central = roi["col_central"]
-    
-    # 3. Obtener coordenadas en píxeles de frecuencia
+
     kx_pix = roi["kx"]
     ky_pix = roi["ky"]
-    
-    # 4. Distancia al centro del lóbulo en PÍXELES
-    distancia_al_lobulo_pix = np.sqrt((kx_pix - kx_pix[0, idx_kx0])**2 + 
-                                      (ky_pix - ky_pix[idx_ky0, 0])**2)
-    
-    # 5. Precalcular FFT
-    f = np.fft.fft2(matriz)
-    fshift = np.fft.fftshift(f)
-    
-    # 6. Barrido de radios
+
+    # ---------- distancia radial ----------
+    distancia = np.sqrt(
+        (kx_pix - kx_pix[0, idx_kx0])**2 +
+        (ky_pix - ky_pix[idx_ky0, 0])**2
+    )
+
+    # ---------- FFT ----------
+    fshift = np.fft.fftshift(np.fft.fft2(matriz))
+
+    # ---------- barrido radios ----------
     radios_pix = np.linspace(radio_min_pix, radio_max_pix, n_radios)
-    resultados = []  # Guardará (r, std_pasos, img, mask, peaks)
-    
+
+    resultados = []
+
     for r_pix in radios_pix:
-        # Máscara Hamming circular
-        mascara = np.zeros_like(distancia_al_lobulo_pix)
-        idx = distancia_al_lobulo_pix <= r_pix
+
+        mascara = np.zeros_like(distancia)
+
+        idx = distancia <= r_pix
         if np.any(idx):
-            # Fórmula corregida: coseno desde 0 hasta π
-            phi = np.pi * distancia_al_lobulo_pix[idx] / r_pix
-            mascara[idx] = 0.54 - 0.46 * np.cos(phi)
-        
-        # Aplicar filtro
+
+            rho = distancia[idx] / r_pix
+
+            # Hamming radial corregida
+            mascara[idx] = 0.54 + 0.46 * np.cos(np.pi * rho)
+
+        # ---------- aplicar filtro ----------
         imagen_filtrada = np.real(
             np.fft.ifft2(np.fft.ifftshift(fshift * mascara))
         )
-        
-        # Detectar picos
+
+        # ---------- detectar picos ----------
         perfil = imagen_filtrada[:, col_central]
+
         peaks, _ = find_peaks(
             perfil,
             height=np.max(perfil)*0.03,
             distance=25,
             prominence=np.max(perfil)*0.03
         )
-        
+
         if len(peaks) >= 4:
+
             pasos = np.diff(peaks.astype(float))
             std_actual = np.std(pasos)
-            resultados.append((r_pix, std_actual, imagen_filtrada, mascara, peaks))
-    
-    # 7. Verificar resultados
+
+            resultados.append(
+                (r_pix, std_actual, imagen_filtrada, mascara, peaks)
+            )
+
+    # ---------- comprobar resultados ----------
     if len(resultados) == 0:
         print("⚠️ No se encontraron radios con suficientes picos")
         return None, None, None, None, None, None, None, None
-    
-    # 8. Seleccionar radio óptimo (menor desviación estándar)
-    r_opt_pix, std_opt, img_opt, mask_opt, peaks_opt = min(resultados, key=lambda x: x[1])
-    
-    # 9. Calcular pasos y estadísticas
+
+    # ---------- radio óptimo ----------
+    r_opt_pix, std_opt, img_opt, mask_opt, peaks_opt = min(
+        resultados, key=lambda x: x[1]
+    )
+
+    # ---------- estadísticas ----------
     pasos_opt = np.diff(peaks_opt.astype(float))
+
     paso_promedio = np.mean(pasos_opt)
     paso_std = np.std(pasos_opt)
-    
-    # 10. PROPAGACIÓN DE ERRORES
+
+    # ---------- errores ----------
     if px_por_mm is not None and err_px_por_mm is not None:
-        # Error sistemático de calibración
+
         err_sist_px = paso_promedio * rel_err_cal
-        
-        # Error total (estadístico + sistemático)
-        error_total_px = np.sqrt(paso_std**2 + err_sist_px**2)
+
+        error_total_px = np.sqrt(
+            paso_std**2 + err_sist_px**2
+        )
+
         error_rel = error_total_px / paso_promedio if paso_promedio != 0 else 0
-        
-        print(f"📊 Paso promedio: {paso_promedio:.2f} ± {paso_std:.2f} px (estadístico)")
+
+        print(f"📊 Paso promedio: {paso_promedio:.2f} ± {paso_std:.2f} px")
         print(f"   Error sistemático calibración: {err_sist_px:.3f} px")
         print(f"   Error total: {error_total_px:.2f} px ({error_rel*100:.2f}%)")
+
     else:
+
         error_total_px = paso_std
         error_rel = paso_std / paso_promedio if paso_promedio != 0 else 0
-        print(f"📊 Paso promedio: {paso_promedio:.2f} ± {paso_std:.2f} px (solo estadístico)")
-    
-    return (pasos_opt, paso_promedio, paso_std, error_total_px, error_rel, r_opt_pix, img_opt, mask_opt, peaks_opt)
-    
-def ajustar_filtro_tukey_radio_barrido_centrado_en_lobulo(roi, kx_rad, ky_rad,
-                                                          px_por_mm=None,
-                                                          err_px_por_mm=None,
-                                                          k_min=1500, k_max=6000, ancho_kx=500,
-                                                          radio_min_pix=2, radio_max_pix=20, n_radios=20,
-                                                          alpha=0.5):
+
+        print(f"📊 Paso promedio: {paso_promedio:.2f} ± {paso_std:.2f} px")
+
+    return (
+        pasos_opt,
+        paso_promedio,
+        paso_std,
+        error_total_px,
+        error_rel,
+        r_opt_pix,
+        img_opt,
+        mask_opt,
+        peaks_opt
+    )
+
+def ajustar_filtro_tukey_radio_barrido_centrado_en_lobulo(
+        roi, kx_rad, ky_rad,
+        px_por_mm=None,
+        err_px_por_mm=None,
+        k_min=1500, k_max=6000, ancho_kx=500,
+        radio_min_pix=2, radio_max_pix=20, n_radios=20,
+        alpha=0.5):
+
     """
-    Barrido de radios para filtro Tukey circular CENTRADO en la posición del lóbulo.
+    Barrido de radios para filtro Tukey circular centrado en el lóbulo.
     Incluye propagación de errores de calibración.
-    
-    Parámetros adicionales:
-    - px_por_mm: píxeles por milímetro (para calibración)
-    - err_px_por_mm: error en px_por_mm
-    - alpha: parámetro Tukey (0=rectangular, 1=Hann)
-    
-    Retorna:
-    - pasos, paso_promedio, std_pasos, error_total_px, error_rel, r_opt_pix, imagen_filtrada, mascara_pix, peaks
     """
-    print(f"Iniciando barrido de radio con filtro Tukey (alpha={alpha}) centrado en lóbulo (en píxeles)")
-    
-    # Verificar calibración
+
+    print(f"Iniciando barrido de radio con filtro Tukey (alpha={alpha}) centrado en lóbulo")
+
+    # ---------- calibración ----------
     if px_por_mm is None or err_px_por_mm is None:
-        print("⚠️ Advertencia: No se proporcionaron errores de calibración. Se devolverá solo error estadístico.")
+        print("⚠️ No se proporcionaron errores de calibración")
         rel_err_cal = 0
     else:
         rel_err_cal = err_px_por_mm / px_por_mm
-    
-    # 1. Localizar lóbulo
-    idx_ky0, idx_kx0 = localizar_lobulo_en_pixeles(roi, kx_rad, ky_rad, 
-                                                    k_min, k_max, ancho_kx)
-    
-    # 2. Extraer datos
+
+    # ---------- localizar lóbulo ----------
+    idx_ky0, idx_kx0 = localizar_lobulo_en_pixeles(
+        roi, kx_rad, ky_rad, k_min, k_max, ancho_kx
+    )
+
     matriz = roi["matriz"]
     col_central = roi["col_central"]
     kx_pix = roi["kx"]
     ky_pix = roi["ky"]
-    
-    # 3. Distancia al lóbulo
-    distancia_al_lobulo_pix = np.sqrt((kx_pix - kx_pix[0, idx_kx0])**2 + 
-                                      (ky_pix - ky_pix[idx_ky0, 0])**2)
-    
-    # 4. Precalcular FFT
+
+    # ---------- distancia radial ----------
+    distancia = np.sqrt(
+        (kx_pix - kx_pix[0, idx_kx0])**2 +
+        (ky_pix - ky_pix[idx_ky0, 0])**2
+    )
+
+    # ---------- FFT ----------
     fshift = np.fft.fftshift(np.fft.fft2(matriz))
-    
-    # 5. Barrido de radios
+
+    # ---------- barrido radios ----------
     radios_pix = np.linspace(radio_min_pix, radio_max_pix, n_radios)
+
     resultados = []
-    
+
     for r_pix in radios_pix:
-        # Máscara Tukey
-        mascara = np.zeros_like(distancia_al_lobulo_pix)
-        idx = distancia_al_lobulo_pix <= r_pix
-        
-        if np.any(idx):
-            rho = distancia_al_lobulo_pix[idx] / r_pix
-            mascara_flat = np.zeros_like(rho)
-            
-            # Región izquierda (decaimiento)
-            idx_left = rho < (alpha / 2)
-            if np.any(idx_left):
-                mascara_flat[idx_left] = 0.5 * (1 + np.cos(np.pi * (2 * rho[idx_left] / alpha - 1)))
-            
-            # Región central
-            idx_center = (rho >= (alpha / 2)) & (rho <= (1 - alpha / 2))
-            if np.any(idx_center):
-                mascara_flat[idx_center] = 1.0
-            
-            # Región derecha
-            idx_right = rho > (1 - alpha / 2)
-            if np.any(idx_right):
-                mascara_flat[idx_right] = 0.5 * (1 + np.cos(np.pi * (2 * rho[idx_right] / alpha - 2 / alpha + 1)))
-            
-            mascara[idx] = mascara_flat
-        
-        # Aplicar filtro
+
+        rho = distancia / r_pix
+        mascara = np.zeros_like(rho)
+
+        # región plana
+        idx_flat = rho <= (1 - alpha/2)
+        mascara[idx_flat] = 1.0
+
+        # transición cosenoidal
+        idx_taper = (rho > (1 - alpha/2)) & (rho <= 1)
+
+        mascara[idx_taper] = 0.5 * (
+            1 + np.cos(
+                np.pi * (rho[idx_taper] - (1 - alpha/2)) / (alpha/2)
+            )
+        )
+
+        # ---------- aplicar filtro ----------
         imagen_filtrada = np.real(
             np.fft.ifft2(np.fft.ifftshift(fshift * mascara))
         )
-        
-        # Detectar picos
+
+        # ---------- detectar picos ----------
         perfil = imagen_filtrada[:, col_central]
+
         peaks, _ = find_peaks(
             perfil,
             height=np.max(perfil)*0.03,
             distance=25,
             prominence=np.max(perfil)*0.03
         )
-        
+
         if len(peaks) >= 4:
             pasos = np.diff(peaks.astype(float))
             std_actual = np.std(pasos)
-            resultados.append((r_pix, std_actual, imagen_filtrada, mascara, peaks))
-    
-    # 6. Seleccionar óptimo
+
+            resultados.append(
+                (r_pix, std_actual, imagen_filtrada, mascara, peaks)
+            )
+
+    # ---------- seleccionar radio óptimo ----------
     if len(resultados) == 0:
         print("⚠️ No se encontraron radios con suficientes picos")
         return None, None, None, None, None, None, None, None, None
-    
-    r_opt_pix, std_opt, img_opt, mask_opt, peaks_opt = min(resultados, key=lambda x: x[1])
-    
-    # 7. Estadísticas
+
+    r_opt_pix, std_opt, img_opt, mask_opt, peaks_opt = min(
+        resultados, key=lambda x: x[1]
+    )
+
+    # ---------- estadísticas ----------
     pasos_opt = np.diff(peaks_opt.astype(float))
+
     paso_promedio = np.mean(pasos_opt)
     paso_std = np.std(pasos_opt)
-    
-    # 8. Propagación de errores
+
+    # ---------- propagación de errores ----------
     if px_por_mm is not None and err_px_por_mm is not None:
+
         err_sist_px = paso_promedio * rel_err_cal
-        error_total_px = np.sqrt(paso_std**2 + err_sist_px**2)
+
+        error_total_px = np.sqrt(
+            paso_std**2 + err_sist_px**2
+        )
+
         error_rel = error_total_px / paso_promedio if paso_promedio != 0 else 0
-        
-        print(f"📊 Paso promedio: {paso_promedio:.2f} ± {paso_std:.2f} px (estadístico)")
+
+        print(f"📊 Paso promedio: {paso_promedio:.2f} ± {paso_std:.2f} px")
         print(f"   Error sistemático calibración: {err_sist_px:.3f} px")
         print(f"   Error total: {error_total_px:.2f} px ({error_rel*100:.2f}%)")
+
     else:
+
         error_total_px = paso_std
         error_rel = paso_std / paso_promedio if paso_promedio != 0 else 0
-        print(f"📊 Paso promedio: {paso_promedio:.2f} ± {paso_std:.2f} px (solo estadístico)")
-    
-    return (pasos_opt, paso_promedio, paso_std, error_total_px, error_rel, r_opt_pix, img_opt, mask_opt, peaks_opt)
+
+        print(f"📊 Paso promedio: {paso_promedio:.2f} ± {paso_std:.2f} px")
+
+    return (
+        pasos_opt,
+        paso_promedio,
+        paso_std,
+        error_total_px,
+        error_rel,
+        r_opt_pix,
+        img_opt,
+        mask_opt,
+        peaks_opt
+    )
 
 def visualizar_resultado_filtrado_binario(matriz_original, imagen_filtrada, mascara_binaria,
                                           fshift=None, kx_rad=None, ky_rad=None,
